@@ -45,11 +45,15 @@ Custom rule **100002 (Level 8)** was implemented to identify the test marker wit
 
 **Result:** Successful detection and alert generation.
 
-**Evidence:**
+### Evidence
+
+**Sysmon Event ID 1 — Process Creation**
 
 ![Sysmon Event ID 1](screenshots/01-sysmon-event.png)
 
-![Custom PowerShell detection](screenshots/02-custom-rule-detection.png)
+**Custom PowerShell Detection**
+
+![Custom PowerShell Detection](screenshots/02-custom-rule-detection.png)
 
 **Detection artifacts:**
 
@@ -82,11 +86,15 @@ Custom rule **100003 (Level 13)** was implemented as a child of rule 92057 to ge
 
 **Result:** Successful detection with MITRE ATT&CK mapping to **T1059.001 — PowerShell**.
 
-**Evidence:**
+### Evidence
 
-![Encoded PowerShell execution](screenshots/03-encoded-powershell-detection.png)
+**Encoded PowerShell Execution**
 
-![Encoded PowerShell alert](screenshots/04-custom-encoded-command-alert.png)
+![Encoded PowerShell Execution](screenshots/03-encoded-powershell-detection.png)
+
+**Custom Encoded Command Alert**
+
+![Encoded PowerShell Alert](screenshots/04-custom-encoded-command-alert.png)
 
 **Detection artifacts:**
 
@@ -118,9 +126,13 @@ These findings indicated limitations in the tested detection coverage. Ingestion
 
 ### Detection Gap Evidence
 
-The following screenshot shows the original Wazuh rule and its detection conditions.
+Analysis of the original Wazuh rule 92057 revealed a parent process dependency, limiting detection coverage for certain encoded PowerShell execution scenarios.
 
-![Wazuh Rule 92057 — Detection Gap](screenshots/05-detection-gap-analysis.png)
+The following screenshot shows the original rule definition, including the `parentImage` and `commandLine` conditions responsible for its detection scope.
+
+**Original Wazuh Rule 92057 — Detection Coverage Limitation**
+
+![Wazuh Rule 92057 — Detection Gap Analysis](screenshots/05-detection-gap-analysis.png)
 
 ### Remediation — Custom Rule 100004
 
@@ -158,11 +170,11 @@ The tests confirmed that rule 100004 detected both tested encoded-command varian
 
 ### Remediation Evidence
 
-**CMD-initiated encoded PowerShell execution:**
+**CMD-Initiated Encoded PowerShell Execution**
 
 ![CMD Encoded PowerShell Test](screenshots/06-cmd-encoded-command-test.png)
 
-**Successful detection — Custom Rule 100004:**
+**Successful Detection — Custom Rule 100004**
 
 ![Custom Rule 100004 Alert](screenshots/07-custom-rule-100004-alert.png)
 
