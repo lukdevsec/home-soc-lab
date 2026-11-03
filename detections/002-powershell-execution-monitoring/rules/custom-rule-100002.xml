@@ -1,0 +1,9 @@
+
+<group name="sysmon,powershell,custom_detection,">
+  <rule id="100002" level="8">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.commandLine" type="pcre2">SOC-LAB-TEST-002</field>
+    <description>Detection 002: PowerShell test command execution detected</description>
+    <group>execution,powershell_monitoring,</group>
+  </rule>
+</group>

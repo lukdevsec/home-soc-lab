@@ -1,0 +1,12 @@
+
+<group name="sysmon,powershell,custom_detection,">
+  <rule id="100003" level="13">
+    <if_sid>92057</if_sid>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)-EncodedCommand\s</field>
+    <description>Detection 002: Encoded PowerShell command execution - custom rule</description>
+    <group>execution,powershell_monitoring,</group>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+  </rule>
+</group>

@@ -1,0 +1,13 @@
+
+<group name="sysmon,powershell,custom_detection,">
+  <rule id="100004" level="12">
+    <if_group>sysmon_event1</if_group>
+    <field name="win.eventdata.image" type="pcre2">(?i)\\(?:powershell|pwsh)\.exe$</field>
+    <field name="win.eventdata.commandLine" type="pcre2">(?i)(?:^|\s)-(?:encodedcommand|enc)(?:\s|$)</field>
+    <description>Detection 002: Encoded PowerShell execution regardless of parent process</description>
+    <group>execution,powershell_monitoring,</group>
+    <mitre>
+      <id>T1059.001</id>
+    </mitre>
+  </rule>
+</group>
