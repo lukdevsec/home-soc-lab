@@ -2,26 +2,36 @@
 
 ## Overview
 
-This detection scenario focuses on monitoring PowerShell process execution using **Sysmon and Wazuh**, with particular attention to Base64-encoded commands.
+This project demonstrates PowerShell execution monitoring using **Wazuh and Sysmon**, focusing on process creation events, Base64-encoded commands, and custom detection rule development.
 
-The lab covers custom detection rule development, alert analysis, validation testing, and the identification and remediation of a detection coverage gap in the existing Wazuh ruleset.
+The scenario consists of three phases:
 
-**Key outcome:** Identified limitations in the existing encoded PowerShell detection logic and implemented a custom rule to improve coverage across different parent processes and command-line arguments.
+1. **Basic Monitoring** — Detecting PowerShell process execution.
+2. **Encoded Command Detection** — Identifying Base64-encoded PowerShell commands.
+3. **Detection Gap Analysis & Remediation** — Investigating limitations in an existing Wazuh rule and improving detection coverage.
+
+**Key outcome:** Identified a detection coverage limitation in the existing Wazuh ruleset and implemented a custom rule to detect additional encoded PowerShell execution scenarios.
 
 ## Lab Environment
 
 | Component | Technology |
 |---|---|
-| SIEM / Detection Engine | Wazuh 4.14 |
+| SIEM | Wazuh 4.14 |
 | Endpoint | Windows 11 Pro |
-| Telemetry | Sysmon — Event ID 1 (Process Creation) |
+| Telemetry | Sysmon — Event ID 1 |
 | Wazuh Server | Ubuntu Server 24.04 LTS |
 | Virtualization | Oracle VirtualBox |
 | MITRE ATT&CK | T1059.001 — PowerShell |
 
+---
+
 ## Phase 1 — Basic PowerShell Monitoring
 
-**Objective:** Verify PowerShell process creation telemetry and implement a custom detection rule.
+### Objective
+
+Verify PowerShell process creation telemetry and implement a custom detection rule.
+
+### Execution
 
 A controlled PowerShell command was executed:
 
@@ -29,18 +39,32 @@ A controlled PowerShell command was executed:
 powershell.exe -NoProfile -Command "Write-Output 'SOC-LAB-TEST-002'"
 ```
 
-Sysmon recorded the process creation event, which was forwarded to Wazuh for analysis.
+Sysmon recorded the process creation event (Event ID 1), which was forwarded to Wazuh for analysis.
 
 Custom rule **100002 (Level 8)** was implemented to identify the test marker within the process command line.
 
 **Result:** Successful detection and alert generation.
 
-- [Custom Rule 100002](rules/rule-100002.xml)
-- [Wazuh Alert 100002](alerts/alert-100002.json)
+**Evidence:**
+
+![Sysmon Event ID 1](screenshots/01-sysmon-event.png)
+
+![Custom PowerShell detection](screenshots/02-custom-rule-detection.png)
+
+**Detection artifacts:**
+
+- [Custom Rule 100002](rules/custom-rule-100002.xml)
+- [Wazuh Alert 100002](alerts/wazuh-alert-100002.json)
+
+---
 
 ## Phase 2 — Encoded PowerShell Execution
 
-**Objective:** Detect PowerShell execution using the `-EncodedCommand` argument.
+### Objective
+
+Detect PowerShell execution using the `-EncodedCommand` argument.
+
+### Execution
 
 A Base64-encoded test command was generated and executed:
 
@@ -54,18 +78,28 @@ powershell.exe -NoProfile -EncodedCommand $encoded
 
 The execution triggered Wazuh's built-in rule **92057**, which detects encoded PowerShell execution under specific conditions.
 
-Custom rule **100003 (Level 13)** was implemented as a child of rule 92057 to provide a dedicated alert for the tested `-EncodedCommand` pattern.
+Custom rule **100003 (Level 13)** was implemented as a child of rule 92057 to generate a dedicated alert for the tested `-EncodedCommand` pattern.
 
-**Result:** Successful detection with MITRE ATT&CK mapping to **T1059.001**.
+**Result:** Successful detection with MITRE ATT&CK mapping to **T1059.001 — PowerShell**.
 
-- [Custom Rule 100003](rules/rule-100003.xml)
-- [Wazuh Alert 100003](alerts/alert-100003.json)
+**Evidence:**
+
+![Encoded PowerShell execution](screenshots/03-encoded-powershell-detection.png)
+
+![Encoded PowerShell alert](screenshots/04-custom-encoded-command-alert.png)
+
+**Detection artifacts:**
+
+- [Custom Rule 100003](rules/custom-rule-100003.xml)
+- [Wazuh Alert 100003](alerts/wazuh-alert-100003.json)
+
+---
 
 ## Phase 3 — Detection Gap Analysis & Remediation
 
 ### Detection Gap Identification
 
-Additional tests were performed to evaluate the detection coverage of the existing Wazuh rule.
+Additional tests were performed to evaluate the detection coverage of the existing Wazuh ruleset.
 
 Analysis of built-in rule **92057** revealed a dependency on the parent process:
 
@@ -75,26 +109,42 @@ Analysis of built-in rule **92057** revealed a dependency on the parent process:
 
 The rule also used a command-line expression that did not explicitly include the exact `-enc` abbreviation.
 
-During testing:
+During testing, two limitations were observed:
 
-- PowerShell execution with `-enc` generated a general process alert (`92027`), rather than the expected encoded-command detection.
-- Encoded PowerShell execution launched from `cmd.exe` was recorded by Sysmon, but the expected specialized alert was not observed.
+- **PowerShell with `-enc`:** The execution generated a general process alert (`92027`) rather than the expected encoded-command detection.
+- **CMD → PowerShell with `-EncodedCommand`:** Sysmon recorded the process creation event, but the expected specialized Wazuh alert was not observed.
 
-These findings demonstrated limitations in the tested detection coverage. The original CMD event's ingestion into the Wazuh analysis engine was not independently confirmed.
+These findings indicated limitations in the tested detection coverage. Ingestion of the original CMD event into the Wazuh analysis engine was not independently confirmed.
+
+### Detection Gap Evidence
+
+The following screenshot shows the original Wazuh rule and its detection conditions.
+
+![Wazuh Rule 92057 — Detection Gap](screenshots/05-detection-gap-analysis.png)
 
 ### Remediation — Custom Rule 100004
 
-Custom rule **100004 (Level 12)** was implemented to detect encoded PowerShell execution without requiring a specific parent process.
+To improve detection coverage, custom rule **100004 (Level 12)** was implemented.
 
-The rule evaluates:
+Unlike the original rule, the new detection does not require a specific parent process.
 
-- Sysmon Event ID 1 process creation events.
+It evaluates:
+
+- Sysmon process creation events (Event ID 1).
 - PowerShell executable paths.
 - The `-EncodedCommand` and `-enc` command-line arguments.
 
-This extends detection coverage to the tested CMD-launched PowerShell scenarios.
+This enables detection of the tested encoded PowerShell executions launched from CMD.
 
-### Validation Results
+### Validation
+
+A controlled encoded PowerShell command was executed from CMD:
+
+```cmd
+powershell.exe -NoProfile -EncodedCommand VwByAGkAdABlAC0ATwB1AHQAcAB1AHQAIAAnAFMATwBDAC0ATABBAEIALQBUAEUAUwBUAC0AMAAwADMAJwA=
+```
+
+**Validation results:**
 
 | Test Scenario | Expected Result | Status |
 |---|---|---|
@@ -104,41 +154,41 @@ This extends detection coverage to the tested CMD-launched PowerShell scenarios.
 | CMD → `-enc` | Rule 100004 | PASS |
 | CMD → normal PowerShell | No rule 100004 alert | PASS |
 
-The tests confirmed that rule 100004 detected both encoded-command variants launched from CMD without triggering on the tested normal PowerShell command.
+The tests confirmed that rule 100004 detected both tested encoded-command variants launched from CMD without triggering on the tested normal PowerShell execution.
 
-**Result:** Improved detection coverage, validated through controlled positive and negative test cases.
+### Remediation Evidence
 
-- [Custom Rule 100004](rules/rule-100004.xml)
-- [Wazuh Alert 100004](alerts/alert-100004.json)
+**CMD-initiated encoded PowerShell execution:**
 
-## Evidence
+![CMD Encoded PowerShell Test](screenshots/06-cmd-encoded-command-test.png)
 
-The following screenshots document the detection workflow and validation results.
+**Successful detection — Custom Rule 100004:**
 
-| Evidence | Description |
-|---|---|
-| [Basic Execution](screenshots/01-basic-execution.png) | Controlled PowerShell execution |
-| [Basic Detection](screenshots/02-basic-alert.png) | Custom rule 100002 alert |
-| [Encoded Command](screenshots/03-encoded-command.png) | Encoded PowerShell execution |
-| [Encoded Command Alert](screenshots/04-encoded-alert.png) | Custom rule 100003 alert |
-| [Detection Gap Analysis](screenshots/05-detection-gap-analysis.png) | Original Wazuh rule 92057 conditions |
-| [Remediation Alert](screenshots/06-remediation-alert.png) | Successful rule 100004 detection |
+![Custom Rule 100004 Alert](screenshots/07-custom-rule-100004-alert.png)
+
+**Detection artifacts:**
+
+- [Custom Rule 100004](rules/custom-rule-100004.xml)
+- [Wazuh Alert 100004](alerts/wazuh-alert-100004.json)
+
+---
 
 ## Limitations
 
 - All tests were performed in an isolated lab environment using controlled commands.
-- Encoded PowerShell execution is not inherently malicious; legitimate administrative activity may use the same arguments.
-- The custom rules were validated against selected scenarios, not every PowerShell argument abbreviation, execution method, or evasion technique.
-- Additional testing and tuning would be required before production deployment.
+- Encoded PowerShell execution is not inherently malicious and may occur during legitimate administrative activity.
+- Detection coverage was validated against selected scenarios, not all PowerShell execution methods, argument abbreviations, or evasion techniques.
+- Additional tuning and testing would be required before production deployment.
 
 ## Key Takeaways
 
-This scenario provided practical experience in:
+This scenario provided hands-on experience in:
 
-- Windows endpoint telemetry collection and Sysmon event analysis.
+- Windows endpoint telemetry collection using Sysmon.
 - Wazuh custom rule development and validation.
-- PowerShell execution monitoring and MITRE ATT&CK mapping.
-- Identifying detection coverage gaps in existing security rules.
-- Implementing and testing detection improvements.
+- PowerShell execution monitoring.
+- MITRE ATT&CK mapping.
+- Identifying detection coverage gaps in existing rules.
+- Implementing and validating detection improvements.
 
-**Outcome:** Three custom Wazuh rules developed and tested, including a remediation rule that successfully detected previously uncovered encoded PowerShell execution scenarios.
+**Final outcome:** Three custom Wazuh rules developed and tested, including a remediation rule that improved detection coverage for encoded PowerShell execution across the tested scenarios.
